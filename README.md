@@ -12,7 +12,13 @@ The script can detect data rows and column header in an OOMMF ODT file, remove e
 
 # Installation
 
-To run `odt2csv`, simply install the latest Python version from https://www.python.org/downloads/ and execute `python odt2csv.py` conveniently in the same directory where the `odt2csv.py` file is located.
+To run `odt2csv`, simply install the latest Python version from https://www.python.org/downloads/ and execute the following conveniently in the same directory where the `odt2csv.py` file is located:
+
+```sh
+python odt2csv.py -i input.odt -o output.csv
+```
+
+Replace `input.odt` and `output.csv` accordingly.
 
 # See also
 
