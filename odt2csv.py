@@ -1,22 +1,48 @@
 # This file converts an OOMMF DataTable output (ODT) into a CSV-like file
 # Created on 2023-07-08
 
-# For detecting column header regex pattern
-import re
-
 # For parsing the input/output file name arguments
 import argparse
 
-# A simple function that removes redundant (double) space characters
+# For separating filenames/paths
+import os
+
 def despacifier(str_):
+    '''
+    A simple function that removes redundant (double) space characters
+    '''
     while str_.__contains__('  '):
         str_ = str_.replace('  ', ' ')
     # Ensures that the string does not start or end in blank spaces
     str_ = str_.strip()
     return str_
 
-# Turn all space characters into commas
+def remove_empty(input_list=[]):
+    '''
+    Remover of empty list items or list items with only blank spaces
+    Assumes each item in input_list is a string
+    '''
+    # The new list
+    output_list = []
+    
+    # Read the input list/array
+    for a in input_list:
+        l = a.strip()
+        if len(l) == 0:
+            # The list item is empty
+            # No need to append to the new list
+            pass
+        else:
+            # You've made it, item list!
+            output_list.append(l)
+    
+    # Return the sanitized list
+    return output_list
+
 def space2comma(str_):
+    '''
+    Turn all space characters into commas
+    '''
     # Despacify!
     str_ = despacifier(str_)
     # Convert spaces to commas
@@ -36,17 +62,25 @@ parser.add_argument('-o', '--output', help='The output CSV file', nargs=1)
 # Parse arguments
 args = parser.parse_args()
 
-# The input/output file
+# The input file
 try:
     fi = str(args.input[0])
-    fo = str(args.output[0])
 except TypeError:
     # raise Exception('Input or output file is not specified. Please do.')
-    print('Input or output file is not specified. Please do.')
+    print('Input file is not specified. Please do.')
     exit(1)
 
-print(args)
-print(args.input)
+# The output file
+try:
+    fo = str(args.output[0])
+except TypeError:
+    # SOURCE: https://stackoverflow.com/a/678242
+    fo = os.path.splitext(fi)[0] + '.csv'
+
+# DEBUG ONLY
+# ---
+# print(args)
+# print(args.input)
 
 # Console logging
 print(f'{fi} --> {fo}')
@@ -69,41 +103,49 @@ for l in read_in:
     if l[:10] == '# Columns:':
         l = despacifier(l[10:])
         
-        # Detecting column header marker ('ch')
-        ch_all = re.split(' {|} ', l)
+        # First step: detecting the existence of the opening '{' delimeter
+        # The variable 'p' is retained for historical reasons
+        # 'ch' stands for 'column header'
+        p = ch = remove_empty(l.split('{'))
         
         # The sanitized column header
         sanitized_ch = ''
         
-        # Distinguishing each column header
-        for ch in ch_all:
-            if ch.__contains__('{') or ch.__contains__('}'):
-                ch = ch.replace('{','').replace('}','')
-                # Wrap in quotes in order to comply with CSV standard
-                ch = "\"" + ch + "\""
-                sanitized_ch += ch + ','
+        # Next step: after splitting the line by the existence of '{',
+        # find the closing '}' delimeter
+        for q in p:
+            if q.__contains__('}'):
+                r = remove_empty(q.split('}'))
+                # Append the first item of r, r[0], which is the only item encapsulated by {...}
+                sanitized_ch += "\"" + r[0] + "\","
+                
+                # r[1], r[2], etc., if they exist, are just regular substring
+                # that do not contain blank spaces
+                # Do normal splitting-by-whitespace if they exist
+                if len(r) > 1:
+                    for s in r[1].split(' '):
+                        sanitized_ch += "\"" + s + "\","
+            
+            # If no '}' delimeter is found, then the substring has no blank space in it
+            # Do normal splitting-by-whitespace
             else:
-                # If this block is reached, that means the '{}' brackets
-                # do not define the column header, because the column header
-                # does not contain any space character
-                # 
-                # Split by space, just in case two or more adjacent non-'{}'-defined
-                # column headers are found
-                ch_sub = ch.split(' ')
-                for m in ch_sub:
-                    # Wrap in quotes in order to comply with CSV standard
-                    m = "\"" + m + "\""
-                    sanitized_ch += m + ','
+                r = remove_empty(q.split(' '))
+                for s in r:
+                    sanitized_ch += "\"" + s + "\","
+        
         # Trim trailing commas
         sanitized_ch = sanitized_ch[:-1]
         
         # Append this header to the first line of the output file
         write_out.write(sanitized_ch + '\n')
         continue
+    
     # Detecting general comments
     elif l[:1] == '#':
-        # Pass this one; no need to process this line
+        # Pass this one; no need to process this line,
+        # which is a comment line
         continue
+    
     # Data rows
     else:
         # Convert this row full of numbers into csv-compatible row
