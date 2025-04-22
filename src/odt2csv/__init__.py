@@ -94,9 +94,7 @@ def tokenize_header(str_):
     # find the closing '}' delimeter.
     for q in p:
         q = q.strip()
-        print(q)
         if q.__contains__('}') and not q.startswith('}'):
-            print('a')
             r = remove_empty(q.split('}'))
             # Append the first item of r, r[0], which is the only item encapsulated by {...} expression.
             sanitized_ch += "\"\"," if r.__len__() == 0 else "\"" + r[0] + "\","
@@ -111,7 +109,6 @@ def tokenize_header(str_):
         # If no '}' delimeter is found, then the substring has no blank space in it.
         # Do normal splitting-by-whitespace.
         else:
-            print('b')
             r = remove_empty(q.split(' '))
             for s in r:
                 if s.startswith('}'):
@@ -122,7 +119,7 @@ def tokenize_header(str_):
     sanitized_ch = sanitized_ch[:-1]
     return sanitized_ch
 
-def convert(odt_input: str, csv_output: str = None, keep_unit: bool = False, parser_behavior: int = 2):
+def convert(odt_input: str, csv_output: str = None, output_suffix: str = None, keep_unit: bool = False, parser_behavior: int = 2):
     """
     This function converts an OOMMF Data Table (ODT) file into a CSV file.
     The CSV file is output to the same directory as the ODT, by default.
@@ -135,19 +132,21 @@ def convert(odt_input: str, csv_output: str = None, keep_unit: bool = False, par
     3 ('raw'): Remove multiple table start headers and treat the ODT file as a single, coherent file.
     
     :param odt_input: The path to the ODT file to be converted.
-    :param csv_output: The target file path to which the output CSV file will be saved (if not specified, the program will output the CSV file into the ODT file's parent directory.
+    :param csv_output: The target file path to which the output CSV file will be saved (if not specified, the program will output the CSV file into the ODT file's parent directory. Ignores 'output_suffix' argument.
+    :param output_suffix: The suffix file name of the output CSV file. Ignored if 'csv_output' argument is present.
     :param keep_unit: Whether or not to keep the unit name (e.g., second, Joule, etc.) row intact.
     :param parser_behavior: The behavior of the ODT file parser.
     """
     
     # Detecting if input file exists.
     if not os.path.exists(odt_input):
-        raise ODTFileNotFoundError
+        raise ODTFileNotFoundError(odt_input)
     
     # Determining the output CSV path.
-    if csv_output is None:
+    if csv_output is None and output_suffix is None:
         fo = os.path.splitext(odt_input)[0] + '.csv'
-        
+    elif csv_output is None and output_suffix is not None:
+        fo = os.path.splitext(odt_input)[0] + str(output_suffix) + '.csv'
     else:
         fo = csv_output
         # Ensuring that the filename always ends in 'csv'.
@@ -173,14 +172,14 @@ def convert(odt_input: str, csv_output: str = None, keep_unit: bool = False, par
     
     # Behavior parameter-specific actions.
     raw_parsing_mode = None
-    if parser_behavior == 1 or str(parser_behavior) == 'new':
+    if str(parser_behavior) == '1' or str(parser_behavior) == 'new':
         raw_parsing_mode = False
-    elif parser_behavior == 2 or str(parser_behavior) == 'fail':
+    elif str(parser_behavior) == '2' or str(parser_behavior) == 'fail':
         if table_start_count > 1:
             raise MultipleTableStartsError(table_start_count)
         else:
             raw_parsing_mode = False
-    elif parser_behavior == 3 or str(parser_behavior) == 'raw':
+    elif str(parser_behavior) == '3' or str(parser_behavior) == 'raw':
         raw_parsing_mode = True
     else:
         raise InvalidParserBehaviorError(parser_behavior)
